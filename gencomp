@@ -1,0 +1,70 @@
+#!/usr/bin/python
+import json
+import os
+import re
+import argparse
+
+# Function to remove comments from JSON
+def remove_comments(json_string):
+    pattern = r'//.*?$|/\*.*?\*/'
+    regex = re.compile(pattern, re.MULTILINE | re.DOTALL)
+    return re.sub(regex, '', json_string)
+
+# Parse command-line arguments
+parser = argparse.ArgumentParser(description="Generate compile_commands.json from c_cpp_properties.json.")
+parser.add_argument('sources', metavar='SOURCES', type=str, nargs='+', help='List of source files.')
+parser.add_argument('-d', '--directory', default='.vscode/c_cpp_properties.json', help='Path to c_cpp_properties.json. Default is .vscode/c_cpp_properties.json.')
+parser.add_argument('-o', '--output', default='./compile_commands.json', help='Output path for compile_commands.json. Default is ./compile_commands.json.')
+
+args = parser.parse_args()
+
+# Check if the c_cpp_properties.json file exists
+if not os.path.exists(args.directory):
+    print(f"Error: The file {args.directory} does not exist.")
+    exit(1)
+
+# Read and clean the JSON file
+try:
+    with open(args.directory, 'r') as f:
+        content = f.read()
+        cleaned_content = remove_comments(content)
+        cpp_properties = json.loads(cleaned_content)
+except json.JSONDecodeError as e:
+    print(f"Error: Failed to decode JSON from {args.directory}.")
+    print(f"Details: {e}")
+    exit(1)
+except Exception as e:
+    print(f"Error: An unexpected error occurred while reading {args.directory}.")
+    print(f"Details: {e}")
+    exit(1)
+
+# Prepare compile_commands.json structure
+compile_commands = []
+
+# Get configuration (assuming single configuration for simplicity)
+config = cpp_properties['configurations'][0]
+
+# Get include paths and defines
+include_paths = config['includePath']
+defines = config['defines']
+compiler_path = config['compilerPath']
+cpp_standard = config.get('cppStandard', '')
+
+# Create compile_commands entries
+for source_file in args.sources:
+    entry = {
+        "directory": os.getcwd(),
+        "command": f"{compiler_path} " + ' '.join(f"-I{path}" for path in include_paths) + ' ' + ' '.join(f"-D{define}" for define in defines) + f" --std={cpp_standard} -c {source_file}",
+        "file": source_file
+    }
+    compile_commands.append(entry)
+
+# Write to compile_commands.json
+try:
+    with open(args.output, 'w') as f:
+        json.dump(compile_commands, f, indent=4)
+    print(f"{args.output} has been generated.")
+except Exception as e:
+    print(f"Error: An unexpected error occurred while writing to {args.output}.")
+    print(f"Details: {e}")
+    exit(1)
