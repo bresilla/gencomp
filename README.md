@@ -20,7 +20,7 @@
 1. Clone the repository:
 
    ```sh
-   git clone https://github.com/yourusername/gencomp.git
+   git clone https://github.com/bresilla/gencomp
    cd gencomp
 
     Make the script executable:
